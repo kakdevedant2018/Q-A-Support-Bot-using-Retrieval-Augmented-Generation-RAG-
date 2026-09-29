@@ -1,0 +1,35 @@
+Customer Support Policy
+
+Support hours
+Support is available Monday to Friday, 9:00 AM to 6:00 PM local time.
+Requests received outside these hours are answered on the next business day.
+
+Response targets
+Standard priority requests receive a first response within 24 hours.
+High priority requests receive a first response within 4 hours.
+A request is treated as high priority when an order has already shipped
+incorrectly or when a payment has been charged twice.
+
+Refund processing
+Once a returned item has been received and inspected, the refund is issued
+to the original payment method. The refund reaches the customer within
+5 to 10 business days depending on the card issuer.
+
+Damaged or incorrect items
+A damaged or incorrect item must be reported within 7 days of delivery.
+Photographs of the item and the packaging are required before a replacement
+is dispatched. Replacements are sent at no additional cost to the customer.
+
+Order cancellation
+An order can be cancelled without charge while its status is Processing.
+After the order has shipped, the standard return process applies instead
+of cancellation.
+
+Escalation
+A customer may request escalation to a support supervisor at any point.
+Escalated requests receive a response within 8 working hours.
+
+Account and data requests
+A customer may request a copy of their account data or ask for their account
+to be closed by contacting support through the customer service portal.
+Identity verification is required before either request is processed.

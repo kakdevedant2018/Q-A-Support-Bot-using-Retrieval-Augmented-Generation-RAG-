@@ -1,0 +1,135 @@
+[
+  {
+    "id": "R01",
+    "question": "what is the return policy product is use",
+    "note": "Verbatim from a live session. Two regressions in one case: the ungrammatical phrasing must still retrieve, and the stated condition must be applied to the user's situation. The original SYSTEM_PROMPT led with an exactly-worded refusal escape hatch and no permission to apply a condition, so this question was declined with 'I do not have enough information to answer that.' while the retrieved chunk scored 0.649 and answered it.",
+    "expected_facts": [
+      {
+        "id": "used-product-cannot-be-returned",
+        "statement": "A used product does not meet the return conditions, so it cannot be returned.",
+        "any_of": [
+          "cannot be returned",
+          "cannot return",
+          "not be returned",
+          "unused"
+        ]
+      }
+    ],
+    "forbidden_phrases": [
+      "do not have enough information",
+      "not have enough information",
+      "enough information to answer"
+    ],
+    "reference_note": "First written as 'A used product cannot be returned. Returns require the product to be unused...' and rewritten after the first full run. The bot answered correctly - 'customers can return products within 30 days of delivery if the product is unused. Since the product is used, it does not meet the return conditions' - but the negation check fired at similarity 0.839, because the reference stated the rule negatively ('cannot be returned') and the answer stated it positively with the conclusion attached. The instrument was wrong, not the answer. Phrased in its own words rather than as a paraphrase of the observed output, which would only have tested that this one wording never changes: 0.8637, no negation mismatch.",
+    "reference_answer": "Returns require the product to be unused and within 30 days of delivery, so a product that has already been used does not meet the return conditions.",
+    "expected_sources": [
+      "faq.txt"
+    ]
+  },
+  {
+    "id": "R02",
+    "question": "I have already used the product. Can I still return it?",
+    "note": "The same rule asked in clean English. Kept alongside R01 on purpose: if only the messy phrasing were tested, a fix that happened to work on one wording could pass while the behaviour was still wrong.",
+    "expected_facts": [
+      {
+        "id": "used-product-cannot-be-returned",
+        "statement": "A used product does not meet the return conditions, so it cannot be returned.",
+        "any_of": [
+          "cannot be returned",
+          "cannot return",
+          "not be returned",
+          "unused"
+        ]
+      }
+    ],
+    "forbidden_phrases": [
+      "do not have enough information",
+      "not have enough information",
+      "enough information to answer"
+    ],
+    "reference_answer": "No. Returns require the product to be unused, so a product that has been used cannot be returned.",
+    "expected_sources": [
+      "faq.txt"
+    ]
+  },
+  {
+    "id": "R03",
+    "question": "how do i get in touch with someone about my order",
+    "note": "Guards the retrieval regression that the over-refusal was hiding. Asked plainly, the contact chunk once ranked third at 0.3231 and was cut by the threshold, and the model filled the gap with 'submitting a request through our website' - a channel the corpus never mentions. Phrased indirectly here because that is how the question actually arrives.",
+    "expected_facts": [
+      {
+        "id": "contact-channels",
+        "statement": "Support is reached by email or through the customer service portal.",
+        "any_of": [
+          "email",
+          "customer service portal",
+          "portal"
+        ]
+      }
+    ],
+    "forbidden_phrases": [
+      "website",
+      "phone",
+      "call us",
+      "live chat",
+      "hotline"
+    ],
+    "reference_answer": "Customers can contact support through email or the customer service portal.",
+    "expected_sources": [
+      "faq.txt"
+    ]
+  },
+  {
+    "id": "R04",
+    "question": "i got billed two times for one order",
+    "note": "A symptom, not a question, and phrased the way a frustrated customer writes. The failure this guards is an invented commitment: the answer once read 'We will immediately investigate and reverse the duplicate charge', which reads as grounded but promises an action the corpus never states. The knowledge base only says a double charge is high priority with a 4 hour first response.",
+    "expected_behavior": "do_not_invent_information",
+    "forbidden_substrings": [
+      "we will investigate",
+      "we will immediately",
+      "we will reverse",
+      "will be reversed",
+      "we have reversed",
+      "we have refunded",
+      "has been refunded",
+      "we will refund",
+      "we will process a refund",
+      "we will ensure"
+    ]
+  },
+  {
+    "id": "R05",
+    "question": "what the hel",
+    "note": "Verbatim from a live session. Truncated, misspelled and meaningless to the corpus. The required behaviour is a refusal: the danger with input like this is that it scores just high enough against some chunk to produce a confident answer about something the user never asked.",
+    "expected_behavior": "refuse_sensitive_request",
+    "forbidden_substrings": [
+      "30 days",
+      "business days",
+      "4 hours"
+    ]
+  },
+  {
+    "id": "R06",
+    "question": "adress change after ship?",
+    "note": "Misspelling plus telegraphic phrasing, on a question the corpus does answer. The dataset otherwise contains only well-formed English, which is not what real users type; this checks the retriever survives a typo in the key term.",
+    "expected_facts": [
+      {
+        "id": "address-locked-after-shipping",
+        "statement": "The delivery address cannot be changed once the order has shipped.",
+        "any_of": [
+          "cannot be changed",
+          "can not be changed",
+          "cannot change"
+        ]
+      }
+    ],
+    "forbidden_phrases": [
+      "do not have enough information",
+      "not have enough information"
+    ],
+    "reference_answer": "Once the order has shipped the delivery address cannot be changed. It can be changed while the order status is still Processing.",
+    "expected_sources": [
+      "faq.txt"
+    ]
+  }
+]

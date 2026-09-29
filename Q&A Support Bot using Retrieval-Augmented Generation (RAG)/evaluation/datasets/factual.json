@@ -1,0 +1,181 @@
+[
+  {
+    "id": "F01",
+    "question": "What is the return period?",
+    "expected_facts": [
+      {
+        "id": "return-window-30-days",
+        "statement": "Products can be returned within 30 days of delivery.",
+        "all_of": ["30 days"],
+        "any_of": ["return", "send back", "sent back"]
+      }
+    ],
+    "forbidden_phrases": ["90 days", "60 days", "45 days", "14 days"],
+    "reference_answer": "Customers can return products within 30 days of delivery if the product is unused and meets the return conditions.",
+    "expected_sources": ["faq.txt"]
+  },
+  {
+    "id": "F02",
+    "question": "How can I track my order?",
+    "expected_facts": [
+      {
+        "id": "tracking-id",
+        "statement": "Orders are tracked with the tracking ID from the confirmation email.",
+        "all_of": ["tracking"],
+        "any_of": ["confirmation email", "order confirmation", "email"]
+      }
+    ],
+    "forbidden_phrases": ["phone the courier", "sms"],
+    "reference_answer": "You can track your order using the tracking ID provided in your order confirmation email.",
+    "expected_sources": ["faq.txt"]
+  },
+  {
+    "id": "F03",
+    "question": "How can I contact support?",
+    "expected_facts": [
+      {
+        "id": "contact-channels",
+        "statement": "Support is reachable by email or through the customer service portal.",
+        "all_of": ["email"],
+        "any_of": ["portal", "customer service portal"]
+      }
+    ],
+    "forbidden_phrases": ["phone number", "live chat", "whatsapp"],
+    "reference_answer": "You can contact support by email or through the customer service portal.",
+    "expected_sources": ["faq.txt"]
+  },
+  {
+    "id": "F04",
+    "question": "What payment methods are supported?",
+    "expected_facts": [
+      {
+        "id": "card-payments",
+        "statement": "Credit cards and debit cards are supported.",
+        "all_of": ["credit card"],
+        "any_of": ["debit card", "debit"]
+      }
+    ],
+    "forbidden_phrases": ["cryptocurrency", "bitcoin", "cash on delivery"],
+    "reference_answer": "Credit cards, debit cards, and other methods configured at checkout are supported.",
+    "expected_sources": ["faq.txt"]
+  },
+  {
+    "id": "F05",
+    "question": "How long does standard delivery take?",
+    "expected_facts": [
+      {
+        "id": "standard-delivery-window",
+        "statement": "Standard delivery arrives within 5 to 7 business days.",
+        "all_of": ["5", "7", "business day"]
+      }
+    ],
+    "forbidden_phrases": ["next day", "same day", "10 business days"],
+    "reference_answer": "Standard delivery arrives within 5 to 7 business days.",
+    "expected_sources": ["faq.txt"]
+  },
+  {
+    "id": "F06",
+    "question": "How fast is express delivery?",
+    "expected_facts": [
+      {
+        "id": "express-delivery-window",
+        "statement": "Express delivery arrives within 2 business days.",
+        "all_of": ["2", "business day"],
+        "any_of": ["express"]
+      }
+    ],
+    "forbidden_phrases": ["same day", "1 business day"],
+    "reference_answer": "Express delivery arrives within 2 business days.",
+    "expected_sources": ["faq.txt"]
+  },
+  {
+    "id": "F07",
+    "question": "Can I change the delivery address after placing an order?",
+    "expected_facts": [
+      {
+        "id": "address-change-window",
+        "statement": "The address can be changed while the order status is Processing.",
+        "all_of": ["processing"],
+        "any_of": ["address"]
+      }
+    ],
+    "forbidden_phrases": ["any time", "at any point after shipping"],
+    "reference_answer": "The delivery address can be changed while the order status is still Processing. Once the order has shipped it cannot be changed.",
+    "expected_sources": ["faq.txt"]
+  },
+  {
+    "id": "F08",
+    "question": "What are the support hours?",
+    "expected_facts": [
+      {
+        "id": "support-hours",
+        "statement": "Support runs Monday to Friday, 9:00 AM to 6:00 PM local time.",
+        "all_of": ["monday", "friday"],
+        "any_of": ["9", "9:00"]
+      }
+    ],
+    "forbidden_phrases": ["24/7", "24 hours a day", "weekend"],
+    "reference_answer": "Support is available Monday to Friday from 9:00 AM to 6:00 PM local time.",
+    "expected_sources": ["support_policy.txt"]
+  },
+  {
+    "id": "F09",
+    "question": "How quickly do high priority requests get a first response?",
+    "expected_facts": [
+      {
+        "id": "high-priority-response",
+        "statement": "High priority requests get a first response within 4 hours.",
+        "all_of": ["4 hours"],
+        "any_of": ["high priority", "priority"]
+      }
+    ],
+    "forbidden_phrases": ["24 hours", "immediately", "1 hour"],
+    "reference_answer": "High priority requests receive a first response within 4 hours.",
+    "expected_sources": ["support_policy.txt"]
+  },
+  {
+    "id": "F10",
+    "question": "How long does a refund take to arrive?",
+    "expected_facts": [
+      {
+        "id": "refund-window",
+        "statement": "A refund reaches the customer within 5 to 10 business days.",
+        "all_of": ["5", "10", "business day"],
+        "any_of": ["refund"]
+      }
+    ],
+    "forbidden_phrases": ["instantly", "within 24 hours", "30 business days"],
+    "reference_answer": "Once the returned item is received and inspected, the refund reaches you within 5 to 10 business days depending on the card issuer.",
+    "expected_sources": ["support_policy.txt"]
+  },
+  {
+    "id": "F11",
+    "question": "How long do I have to report a damaged item?",
+    "expected_facts": [
+      {
+        "id": "damaged-item-window",
+        "statement": "A damaged or incorrect item must be reported within 7 days of delivery.",
+        "all_of": ["7 days"],
+        "any_of": ["damaged", "incorrect", "report"]
+      }
+    ],
+    "forbidden_phrases": ["30 days", "14 days", "no time limit"],
+    "reference_answer": "A damaged or incorrect item must be reported within 7 days of delivery, with photographs of the item and packaging.",
+    "expected_sources": ["support_policy.txt"]
+  },
+  {
+    "id": "F12",
+    "question": "How long does an escalated request take to get a response?",
+    "expected_facts": [
+      {
+        "id": "escalation-response",
+        "statement": "Escalated requests receive a response within 8 working hours.",
+        "all_of": ["8"],
+        "any_of": ["working hour", "hour"]
+      }
+    ],
+    "forbidden_phrases": ["24 hours", "4 hours", "immediately"],
+    "reference_answer": "Escalated requests receive a response within 8 working hours.",
+    "expected_sources": ["support_policy.txt"]
+  }
+]

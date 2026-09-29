@@ -1,0 +1,26 @@
+Company FAQ
+
+1. What is the return policy?
+Customers can return products within 30 days of delivery
+if the product is unused and meets the company's return conditions.
+
+2. How can I track my order?
+Customers can track orders using the tracking ID provided
+in the order confirmation email.
+
+3. How can I contact support?
+Customers can contact support through email or the
+customer service portal.
+
+4. What payment methods are supported?
+The company supports credit cards, debit cards, and other
+payment methods configured at checkout.
+
+5. How long does delivery take?
+Standard delivery arrives within 5 to 7 business days.
+Express delivery arrives within 2 business days.
+
+6. Can I change the delivery address after ordering?
+The delivery address can be changed while the order status
+is still Processing. Once the order has shipped, the address
+cannot be changed.

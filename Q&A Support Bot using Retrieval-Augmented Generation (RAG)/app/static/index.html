@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<!--
+  Support bot UI.
+
+  Deliberately one self-contained file: no build step, no npm, no CDN, no
+  framework. It is served by the same FastAPI process that answers the
+  questions, so there is nothing extra to run and it works offline.
+
+  It calls the same POST /api/v1/ask that curl and the CLI call. There is no
+  privileged path into the system for the browser.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='10' fill='%23111'/></svg>">
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --surface: #ffffff;
+    --text: #12131a;
+    --muted: #6d7280;
+    --faint: #9aa0aa;
+    --line: #e7e6e3;
+    --line-strong: #d6d4d0;
+    --accent: #12131a;
+    --user-bg: #f1f0ed;
+    --warn: #8a6216;
+    --warn-bg: #fdf6e6;
+    --error: #a33a32;
+    --error-bg: #fdf1f0;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0f12;
+      --surface: #15171b;
+      --text: #e8e8e6;
+      --muted: #969ba4;
+      --faint: #6b7078;
+      --line: #23262c;
+      --line-strong: #31353d;
+      --accent: #e8e8e6;
+      --user-bg: #1c1f25;
+      --warn: #d2a750;
+      --warn-bg: #221d12;
+      --error: #e08b84;
+      --error-bg: #241614;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text",
+          "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.005em;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* --- header ------------------------------------------------------------ */
+
+  header {
+    flex: none;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(180%) blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .header-inner {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .title {
+    font-size: 14px;
+    font-weight: 590;
+    letter-spacing: -0.01em;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--faint);
+  }
+  .dot.up    { background: #3f9d58; }
+  .dot.down  { background: #c2453b; }
+
+  .reset {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .reset:hover { border-color: var(--line-strong); color: var(--text); }
+
+  /* --- transcript -------------------------------------------------------- */
+
+  main {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+
+  .thread {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 24px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+
+  /* Empty state */
+
+  .intro { padding: 48px 0 8px; }
+
+  .intro h1 {
+    margin: 0 0 8px;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+
+  .intro p {
+    margin: 0 0 22px;
+    color: var(--muted);
+    max-width: 46ch;
+  }
+
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .chip {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color .12s ease, transform .12s ease;
+  }
+  .chip:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+
+  /* Messages */
+
+  .turn { display: flex; flex-direction: column; gap: 8px; }
+
+  .user {
+    align-self: flex-end;
+    max-width: 82%;
+    background: var(--user-bg);
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .bot {
+    border-left: 2px solid var(--line-strong);
+    padding-left: 16px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .bot.declined { border-left-color: var(--warn); }
+  .bot.failed   { border-left-color: var(--error); }
+
+  .tag {
+    display: inline-block;
+    margin-bottom: 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--warn);
+    background: var(--warn-bg);
+  }
+  .tag.err { color: var(--error); background: var(--error-bg); }
+
+  .meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+  }
+
+  /* Sources */
+
+  details.sources { margin-top: 4px; }
+
+  details.sources summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--muted);
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    user-select: none;
+  }
+  details.sources summary::-webkit-details-marker { display: none; }
+  details.sources summary:hover { color: var(--text); }
+  details.sources summary::before {
+    content: "";
+    width: 0; height: 0;
+    border-left: 4px solid currentColor;
+    border-top: 3.5px solid transparent;
+    border-bottom: 3.5px solid transparent;
+    transition: transform .15s ease;
+  }
+  details.sources[open] summary::before { transform: rotate(90deg); }
+
+  .source {
+    margin-top: 10px;
+    padding: 11px 13px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+
+  .source-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+
+  .source-name { font-family: var(--mono); color: var(--text); }
+
+  .score {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .bar {
+    width: 54px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .bar > i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+  }
+
+  /* Clipped to whole lines, with a fade at the cut. A hard overflow crop
+     slices the last line in half and reads as a rendering bug. */
+  .source-text {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--muted);
+    white-space: pre-wrap;
+    max-height: calc(1.55em * 3);
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+            mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+  }
+  .source-text.open {
+    max-height: none;
+    -webkit-mask-image: none;
+            mask-image: none;
+  }
+
+  .more {
+    appearance: none;
+    border: 0;
+    background: none;
+    padding: 0;
+    margin-top: 6px;
+    font: inherit;
+    font-size: 11.5px;
+    color: var(--muted);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* Pending indicator */
+
+  .pending { display: flex; gap: 4px; padding: 4px 0 0 18px; }
+  .pending i {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--faint);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .pending i:nth-child(2) { animation-delay: .15s; }
+  .pending i:nth-child(3) { animation-delay: .3s; }
+
+  @keyframes pulse {
+    0%, 60%, 100% { opacity: .25; transform: translateY(0); }
+    30%           { opacity: 1;   transform: translateY(-2px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pending i { animation: none; opacity: .5; }
+    .chip { transition: none; }
+  }
+
+  /* --- composer ---------------------------------------------------------- */
+
+  footer {
+    flex: none;
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(180%) blur(12px);
+  }
+
+  form {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 14px 24px 18px;
+  }
+
+  .composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px 8px 8px 14px;
+    transition: border-color .12s ease;
+  }
+  .composer:focus-within { border-color: var(--line-strong); }
+
+  textarea {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    resize: none;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    line-height: 1.55;
+    padding: 5px 0;
+    max-height: 168px;
+  }
+  textarea::placeholder { color: var(--faint); }
+
+  .send {
+    appearance: none;
+    flex: none;
+    border: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--bg);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: opacity .12s ease;
+  }
+  .send:disabled { opacity: .3; cursor: default; }
+  .send svg { width: 15px; height: 15px; }
+
+  .hints {
+    display: flex;
+    gap: 12px;
+    margin: 8px 2px 0;
+    font-size: 11.5px;
+    color: var(--faint);
+  }
+  .count { margin-left: auto; font-family: var(--mono); }
+  .count.near { color: var(--warn); }
+
+  kbd {
+    font: inherit;
+    font-size: 11px;
+    font-family: var(--mono);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+
+  .sr {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <span class="dot" id="dot" aria-hidden="true"></span>
+    <span class="title">Support</span>
+    <span class="status">
+      <span id="status-text">checking…</span>
+      <button class="reset" id="reset" type="button">Clear</button>
+    </span>
+  </div>
+</header>
+
+<main id="main">
+  <div class="thread" id="thread" aria-live="polite" aria-atomic="false">
+    <div class="intro" id="intro">
+      <h1>Ask a support question</h1>
+      <p>Answers come only from the indexed support documents. If the knowledge
+         base does not cover something, this will say so rather than guess.</p>
+      <div class="examples">
+        <button class="chip" type="button">What is the return policy?</button>
+        <button class="chip" type="button">How long does delivery take?</button>
+        <button class="chip" type="button">When do refunds arrive?</button>
+        <button class="chip" type="button">What are the support hours?</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <form id="form">
+    <div class="composer">
+      <label class="sr" for="q">Your question</label>
+      <textarea id="q" rows="1" placeholder="Ask a question…"
+                maxlength="1000" autocomplete="off" autofocus></textarea>
+      <button class="send" id="send" type="submit" disabled aria-label="Send">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/>
+        </svg>
+      </button>
+    </div>
+    <div class="hints">
+      <span><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line</span>
+      <span class="count" id="count"></span>
+    </div>
+  </form>
+</footer>
+
+<script>
+"use strict";
+
+const ASK_URL = "/api/v1/ask";
+const MAX_CHARS = 1000;   // mirrors AskRequest; the API remains the authority
+const MIN_CHARS = 3;
+
+const thread   = document.getElementById("thread");
+const intro    = document.getElementById("intro");
+const main     = document.getElementById("main");
+const form     = document.getElementById("form");
+const input    = document.getElementById("q");
+const sendBtn  = document.getElementById("send");
+const counter  = document.getElementById("count");
+const dot      = document.getElementById("dot");
+const statusEl = document.getElementById("status-text");
+
+let pending = false;
+
+/* --- helpers ------------------------------------------------------------ */
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function scrollToEnd() {
+  main.scrollTo({ top: main.scrollHeight, behavior: "smooth" });
+}
+
+function autoGrow() {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 168) + "px";
+}
+
+function refreshComposer() {
+  const length = input.value.trim().length;
+  sendBtn.disabled = pending || length < MIN_CHARS;
+
+  const remaining = MAX_CHARS - input.value.length;
+  if (remaining <= 120) {
+    counter.textContent = remaining + " left";
+    counter.classList.toggle("near", remaining <= 40);
+  } else {
+    counter.textContent = "";
+    counter.classList.remove("near");
+  }
+}
+
+/* --- rendering ---------------------------------------------------------- */
+
+function addTurn() {
+  if (intro.isConnected) intro.remove();
+  const turn = el("div", "turn");
+  thread.appendChild(turn);
+  return turn;
+}
+
+function addQuestion(turn, question) {
+  turn.appendChild(el("div", "user", question));
+}
+
+function addPending(turn) {
+  const wrap = el("div", "pending");
+  wrap.setAttribute("aria-label", "Thinking");
+  for (let i = 0; i < 3; i++) wrap.appendChild(el("i"));
+  turn.appendChild(wrap);
+  return wrap;
+}
+
+function addAnswer(turn, payload, seconds) {
+  /* Only a knowledge-base miss is tagged. A greeting is answered without
+     consulting the index at all, so labelling it "not in knowledge base" would
+     report a failure that did not happen. */
+  const declined = payload.answer_type === "out_of_scope"
+    || (payload.answer_type === undefined && Boolean(payload.insufficient_context));
+  const body = el("div", "bot" + (declined ? " declined" : ""));
+
+  if (declined) {
+    body.appendChild(el("span", "tag", "not in knowledge base"));
+    body.appendChild(document.createElement("br"));
+  }
+
+  body.appendChild(document.createTextNode(payload.answer || ""));
+  turn.appendChild(body);
+
+  const sources = payload.sources || [];
+  if (sources.length) turn.appendChild(renderSources(sources));
+
+  const requestId = payload.request_id || "unknown";
+  turn.appendChild(el("div", "meta", seconds.toFixed(1) + "s · " + requestId));
+}
+
+function renderSources(sources) {
+  const details = el("details", "sources");
+  const label = sources.length === 1 ? "1 source" : sources.length + " sources";
+  details.appendChild(el("summary", null, label));
+
+  for (const source of sources) {
+    const meta  = source.metadata || {};
+    const score = typeof source.relevance_score === "number"
+      ? source.relevance_score : null;
+
+    const card = el("div", "source");
+    const head = el("div", "source-head");
+    head.appendChild(el("span", "source-name", meta.source || "unknown"));
+    head.appendChild(el("span", null, "chunk " + (meta.chunk_index ?? "?")));
+
+    if (score !== null) {
+      const wrap = el("span", "score");
+      const bar = el("span", "bar");
+      const fill = document.createElement("i");
+      // Scores can in principle fall outside [0, 1]; clamp so the bar stays sane.
+      fill.style.width = Math.max(0, Math.min(1, score)) * 100 + "%";
+      bar.appendChild(fill);
+      wrap.appendChild(bar);
+      wrap.appendChild(el("span", null, score.toFixed(3)));
+      head.appendChild(wrap);
+    }
+
+    card.appendChild(head);
+
+    const text = el("div", "source-text", source.content || "");
+    card.appendChild(text);
+
+    // Only offer the toggle when there is actually something clipped.
+    requestAnimationFrame(() => {
+      if (text.scrollHeight - text.clientHeight > 4) {
+        const toggle = el("button", "more", "Show full chunk");
+        toggle.type = "button";
+        toggle.addEventListener("click", () => {
+          const open = text.classList.toggle("open");
+          toggle.textContent = open ? "Show less" : "Show full chunk";
+        });
+        card.appendChild(toggle);
+      }
+    });
+
+    details.appendChild(card);
+  }
+
+  return details;
+}
+
+function addError(turn, message) {
+  const body = el("div", "bot failed");
+  const tag = el("span", "tag err", "could not answer");
+  body.appendChild(tag);
+  body.appendChild(document.createElement("br"));
+  body.appendChild(document.createTextNode(message));
+  turn.appendChild(body);
+}
+
+/* --- error messages ----------------------------------------------------- */
+
+/* The API returns a distinct status per failure, so each one maps to the
+   action that fixes it rather than a generic "something went wrong". */
+async function describeFailure(response) {
+  let detail = "";
+  try {
+    const body = await response.json();
+    detail = Array.isArray(body.detail)
+      ? body.detail.map(d => d.msg || String(d)).join("; ")
+      : (body.detail || "");
+  } catch (_) { /* a non-JSON body is not worth reporting verbatim */ }
+
+  if (response.status === 422) {
+    return "That question was rejected by validation" + (detail ? ": " + detail : ".");
+  }
+  if (response.status === 503) {
+    return "The knowledge base is unavailable — it may never have been built. "
+         + "Run: python -m app.ingestion.ingest";
+  }
+  if (response.status === 502) {
+    return "The local model is unreachable. Check that Ollama is running and "
+         + "the configured model is pulled: ollama list";
+  }
+  return "The server returned HTTP " + response.status
+       + (detail ? ": " + detail : ".");
+}
+
+/* --- submit ------------------------------------------------------------- */
+
+async function ask(question) {
+  pending = true;
+  refreshComposer();
+
+  const turn = addTurn();
+  addQuestion(turn, question);
+  const indicator = addPending(turn);
+  scrollToEnd();
+
+  const started = performance.now();
+
+  try {
+    const response = await fetch(ASK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question })
+    });
+
+    const seconds = (performance.now() - started) / 1000;
+    indicator.remove();
+
+    if (!response.ok) {
+      addError(turn, await describeFailure(response));
+    } else {
+      addAnswer(turn, await response.json(), seconds);
+    }
+
+  } catch (_) {
+    indicator.remove();
+    addError(turn, "Could not reach the server. Is it still running?");
+    setStatus(false);
+
+  } finally {
+    pending = false;
+    refreshComposer();
+    scrollToEnd();
+    input.focus();
+  }
+}
+
+form.addEventListener("submit", event => {
+  event.preventDefault();
+  const question = input.value.trim();
+  if (pending || question.length < MIN_CHARS) return;
+
+  input.value = "";
+  autoGrow();
+  refreshComposer();
+  ask(question);
+});
+
+input.addEventListener("input", () => { autoGrow(); refreshComposer(); });
+
+input.addEventListener("keydown", event => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    form.requestSubmit();
+  }
+});
+
+for (const chip of document.querySelectorAll(".chip")) {
+  chip.addEventListener("click", () => {
+    input.value = chip.textContent;
+    autoGrow();
+    refreshComposer();
+    form.requestSubmit();
+  });
+}
+
+document.getElementById("reset").addEventListener("click", () => {
+  for (const turn of document.querySelectorAll(".turn")) turn.remove();
+  thread.appendChild(intro);
+  input.focus();
+});
+
+/* --- liveness ----------------------------------------------------------- */
+
+function setStatus(up) {
+  dot.className = "dot " + (up ? "up" : "down");
+  statusEl.textContent = up ? "connected" : "offline";
+}
+
+fetch("/health")
+  .then(response => setStatus(response.ok))
+  .catch(() => setStatus(false));
+
+refreshComposer();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,316 @@
+{
+  "info": {
+    "name": "RAG Support Bot API",
+    "description": "Manual and Newman-runnable checks for the RAG support bot.\n\nRequests 1 and 3 to 7 exercise the API contract and input validation. They need only a running server.\n\nRequests 2 and 8 exercise real retrieval and generation. They additionally need an ingested vector store (python -m app.ingestion.ingest) and a running Ollama server with the configured model pulled.\n\nRun from the CLI:\n  newman run postman/rag_support_bot_collection.json -e postman/rag_environment.json",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "long_question",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Build the over-length payload here instead of pasting 1001 characters",
+          "// into a request body.",
+          "pm.collectionVariables.set('long_question', 'a'.repeat(1001));",
+          "pm.collectionVariables.set('max_length_question', 'a'.repeat(1000));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "H01 to H03. Liveness only; must not depend on the vector store."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response is JSON', () => pm.response.to.be.json);",
+              "const data = pm.response.json();",
+              "pm.test('Status is healthy', () => pm.expect(data.status).to.eql('healthy'));",
+              "pm.test('Version is reported', () => pm.expect(data.version).to.be.a('string'));",
+              "pm.test('Request id header is present', () =>",
+              "    pm.expect(pm.response.headers.get('X-Request-ID')).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Ask - Valid Question",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"How long do I have to return a product?\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/ask",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "ask"]
+        },
+        "description": "V01 and R01. Needs an ingested index and a running Ollama server."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response is JSON', () => pm.response.to.be.json);",
+              "",
+              "const data = pm.response.json();",
+              "",
+              "pm.test('Answer exists', () => pm.expect(data).to.have.property('answer'));",
+              "pm.test('Answer is a non-empty string', () => {",
+              "    pm.expect(data.answer).to.be.a('string');",
+              "    pm.expect(data.answer.trim()).to.not.eql('');",
+              "});",
+              "pm.test('Sources is an array', () => pm.expect(data.sources).to.be.an('array'));",
+              "pm.test('Request id is echoed', () => pm.expect(data.request_id).to.be.a('string'));",
+              "",
+              "// Groundedness: the knowledge base says 30 days. Anything else is invented.",
+              "pm.test('Answer mentions 30 days', () =>",
+              "    pm.expect(data.answer.toLowerCase()).to.include('30 days'));",
+              "pm.test('Answer does not invent a different window', () => {",
+              "    const answer = data.answer.toLowerCase();",
+              "    pm.expect(answer).to.not.include('90 days');",
+              "    pm.expect(answer).to.not.include('60 days');",
+              "});",
+              "",
+              "pm.test('Answer is attributed to a source file', () => {",
+              "    pm.expect(data.sources.length).to.be.above(0);",
+              "    pm.expect(data.sources[0].metadata).to.have.property('source');",
+              "});",
+              "",
+              "pm.test('Responded within 30 seconds', () =>",
+              "    pm.expect(pm.response.responseTime).to.be.below(30000));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Ask - Empty Question (422)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"\"\n}" },
+        "url": {
+          "raw": "{{base_url}}/api/v1/ask",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "ask"]
+        },
+        "description": "V02. Below the minimum length."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 422', () => pm.response.to.have.status(422));",
+              "const data = pm.response.json();",
+              "pm.test('Error detail exists', () => pm.expect(data).to.have.property('detail'));",
+              "pm.test('No stack trace leaked', () =>",
+              "    pm.expect(pm.response.text()).to.not.include('Traceback'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Ask - Missing Field (422)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": {
+          "raw": "{{base_url}}/api/v1/ask",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "ask"]
+        },
+        "description": "V03. The question field is required."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 422', () => pm.response.to.have.status(422));",
+              "pm.test('Error names the missing field', () =>",
+              "    pm.expect(pm.response.text()).to.include('question'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Ask - Wrong Data Type (422)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"question\": 12345\n}" },
+        "url": {
+          "raw": "{{base_url}}/api/v1/ask",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "ask"]
+        },
+        "description": "V05. A number is not coerced into a string."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 422', () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Ask - Exceeds Max Length (422)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"{{long_question}}\"\n}" },
+        "url": {
+          "raw": "{{base_url}}/api/v1/ask",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "ask"]
+        },
+        "description": "V08. 1001 characters, one past the documented bound."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 422', () => pm.response.to.have.status(422));",
+              "pm.test('Rejected before any model call', () =>",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Ask - Whitespace Only (422)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"   \"\n}" },
+        "url": {
+          "raw": "{{base_url}}/api/v1/ask",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "ask"]
+        },
+        "description": "V09. Three characters, so only the business rule catches it. This is the case a length check alone lets through."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 422', () => pm.response.to.have.status(422));",
+              "pm.test('Error detail exists', () =>",
+              "    pm.expect(pm.response.json()).to.have.property('detail'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Ask - Out of Scope Question (200 fallback)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"What is the weather on Mars today?\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/ask",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "ask"]
+        },
+        "description": "R04. A valid request with no answer in the knowledge base. The relevance threshold should reject every chunk, so the bot declines rather than guessing. Needs an ingested index."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+              "",
+              "const data = pm.response.json();",
+              "",
+              "pm.test('Flagged as insufficient context', () =>",
+              "    pm.expect(data.insufficient_context).to.eql(true));",
+              "pm.test('No sources are cited', () =>",
+              "    pm.expect(data.sources).to.be.an('array').that.is.empty);",
+              "pm.test('Answer admits it does not know', () =>",
+              "    pm.expect(data.answer.toLowerCase()).to.include('enough information'));",
+              "",
+              "// The threshold should short-circuit before generation, so this path is fast.",
+              "pm.test('Declined without calling the model', () =>",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Health - Unsupported Method (405)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "H03. POST to a GET-only route."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 405', () => pm.response.to.have.status(405));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

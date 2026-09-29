@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------------------
+# Minimal dependency set for the DEFAULT (mocked) test suite.
+#
+# The mocked suite covers health, input validation, the response contract,
+# error handling, and the relevance-threshold logic. None of that needs the
+# embedding model, Chroma, or Ollama, because every heavy import in the app is
+# deliberately deferred to inside a function.
+#
+# The practical benefits:
+#   - CI installs in seconds instead of downloading torch
+#   - the suite still runs if a native wheel fails to build on Windows
+#
+# For the integration suite (pytest -m integration) install the full
+# requirements.txt instead.
+# ---------------------------------------------------------------------------
+
+fastapi>=0.115
+pydantic>=2.7
+pydantic-settings>=2.3
+python-dotenv>=1.0
+
+# Needed only for the prompt-construction step exercised by the threshold
+# unit tests. Pure Python, no native build.
+langchain-core>=0.3
+
+httpx>=0.27
+pytest>=8.2
+pytest-cov>=5.0
+pytest-html>=4.1

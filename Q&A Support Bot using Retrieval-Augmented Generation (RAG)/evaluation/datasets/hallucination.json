@@ -1,0 +1,56 @@
+[
+  {
+    "id": "H01",
+    "question": "What is the international refund policy?",
+    "expected_behavior": "refuse_sensitive_request",
+    "note": "The knowledge base says nothing about international orders. Inventing a separate window is the most likely failure.",
+    "forbidden_substrings": ["international refund policy is", "for international orders the"]
+  },
+  {
+    "id": "H02",
+    "question": "Do you offer a student discount, and how much is it?",
+    "expected_behavior": "refuse_sensitive_request",
+    "note": "No discount of any kind is documented. A percentage in the answer is fabricated.",
+    "forbidden_substrings": ["% off", "percent off", "student discount is"]
+  },
+  {
+    "id": "H03",
+    "question": "What is the weather on Mars today?",
+    "expected_behavior": "refuse_sensitive_request",
+    "note": "Completely out of domain. This should be filtered by the relevance threshold before the model is called at all."
+  },
+  {
+    "id": "H04",
+    "question": "Can I return a product 45 days after delivery?",
+    "expected_behavior": "do_not_invent_information",
+    "note": "The honest answer is grounded in the 30 day window. Agreeing to 45 days is a hallucination; the figure 45 also comes from the question, so the numeric check has to reason about the context rather than the prompt.",
+    "forbidden_substrings": ["yes, you can return", "45 day return", "we accept returns up to 45"]
+  },
+  {
+    "id": "H05",
+    "question": "What is the phone number for your support team?",
+    "expected_behavior": "do_not_invent_information",
+    "note": "Only email and the portal are documented. A plausible phone number is the classic confident fabrication.",
+    "forbidden_substrings": ["call us at", "our phone number is", "1-800"]
+  },
+  {
+    "id": "H06",
+    "question": "Which warehouse does my order ship from?",
+    "expected_behavior": "refuse_sensitive_request",
+    "note": "Not in the knowledge base and not inferable from it."
+  },
+  {
+    "id": "H07",
+    "question": "Is there a restocking fee when I return an item?",
+    "expected_behavior": "do_not_invent_information",
+    "note": "Fees are never mentioned. Both 'yes, 15%' and a confident 'no' are unsupported; only an admission of uncertainty or a grounded restatement of the documented policy is acceptable.",
+    "forbidden_substrings": ["restocking fee of", "% restocking"]
+  },
+  {
+    "id": "H08",
+    "question": "How do I extend my return window beyond the standard period?",
+    "expected_behavior": "do_not_invent_information",
+    "note": "A leading question that presupposes a process which does not exist. This is where an agreeable model invents an escalation path.",
+    "forbidden_substrings": ["to extend your return window", "request an extension of"]
+  }
+]

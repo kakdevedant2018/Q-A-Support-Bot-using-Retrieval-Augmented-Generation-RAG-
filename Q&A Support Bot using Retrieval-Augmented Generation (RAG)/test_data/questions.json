@@ -1,0 +1,38 @@
+[
+  {
+    "id": "R01",
+    "question": "What is the return policy?",
+    "expected_keywords": ["30 days"],
+    "forbidden_keywords": ["90 days", "60 days"]
+  },
+  {
+    "id": "R02",
+    "question": "How can I track my order?",
+    "expected_keywords": ["tracking"],
+    "forbidden_keywords": []
+  },
+  {
+    "id": "R03",
+    "question": "How can I contact support?",
+    "expected_keywords": ["support"],
+    "forbidden_keywords": []
+  },
+  {
+    "id": "R04",
+    "question": "What payment methods are supported?",
+    "expected_keywords": ["card"],
+    "forbidden_keywords": []
+  },
+  {
+    "id": "R05",
+    "question": "How long does standard delivery take?",
+    "expected_keywords": ["business days"],
+    "forbidden_keywords": []
+  },
+  {
+    "id": "R06",
+    "question": "How long do I have to report a damaged item?",
+    "expected_keywords": ["7 days"],
+    "forbidden_keywords": ["30 days"]
+  }
+]

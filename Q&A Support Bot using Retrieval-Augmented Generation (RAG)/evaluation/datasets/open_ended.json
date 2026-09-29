@@ -1,0 +1,97 @@
+[
+  {
+    "id": "O01",
+    "question": "Explain the return policy to me.",
+    "expected_facts": [
+      {
+        "id": "return-window-30-days",
+        "statement": "Products can be returned within 30 days of delivery.",
+        "all_of": ["30 days"]
+      },
+      {
+        "id": "return-conditions",
+        "statement": "The product must be unused and meet the return conditions.",
+        "any_of": ["unused", "return condition", "condition"]
+      }
+    ],
+    "forbidden_phrases": ["90 days", "60 days", "no questions asked"],
+    "reference_answer": "Customers can return products within 30 days of delivery, provided the product is unused and meets the company's return conditions.",
+    "expected_sources": ["faq.txt"],
+    "judge": true
+  },
+  {
+    "id": "O02",
+    "question": "My order arrived damaged. What should I do?",
+    "expected_facts": [
+      {
+        "id": "damaged-item-window",
+        "statement": "A damaged item must be reported within 7 days of delivery.",
+        "all_of": ["7 days"]
+      },
+      {
+        "id": "photographs-required",
+        "statement": "Photographs of the item and packaging are required.",
+        "any_of": ["photograph", "photo", "picture"]
+      }
+    ],
+    "forbidden_phrases": ["refund immediately", "no evidence needed"],
+    "reference_answer": "Report the damaged item within 7 days of delivery and send photographs of the item and the packaging. A replacement is then dispatched at no additional cost.",
+    "expected_sources": ["support_policy.txt"],
+    "judge": true
+  },
+  {
+    "id": "O03",
+    "question": "I was charged twice for my order. How is that handled?",
+    "expected_facts": [
+      {
+        "id": "double-charge-is-high-priority",
+        "statement": "A double charge is treated as a high priority request, answered within 4 hours.",
+        "any_of": ["high priority", "4 hours"]
+      }
+    ],
+    "forbidden_phrases": ["not our responsibility", "contact your bank only"],
+    "reference_answer": "A payment charged twice is treated as a high priority request, which receives a first response within 4 hours.",
+    "expected_sources": ["support_policy.txt"],
+    "judge": true
+  },
+  {
+    "id": "O04",
+    "question": "What is the difference between cancelling an order and returning it?",
+    "expected_facts": [
+      {
+        "id": "cancel-while-processing",
+        "statement": "An order can be cancelled without charge while its status is Processing.",
+        "any_of": ["processing"]
+      },
+      {
+        "id": "return-after-shipping",
+        "statement": "After shipping, the return process applies instead of cancellation.",
+        "any_of": ["shipped", "return process", "return"]
+      }
+    ],
+    "forbidden_phrases": ["cancellation fee", "restocking fee"],
+    "reference_answer": "An order can be cancelled without charge while its status is still Processing. Once it has shipped, the standard return process applies instead of cancellation.",
+    "expected_sources": ["support_policy.txt", "faq.txt"],
+    "judge": true
+  },
+  {
+    "id": "O05",
+    "question": "How do I ask for a copy of my account data?",
+    "expected_facts": [
+      {
+        "id": "portal-request",
+        "statement": "Account data requests go through the customer service portal.",
+        "any_of": ["portal", "contacting support", "contact support"]
+      },
+      {
+        "id": "identity-verification",
+        "statement": "Identity verification is required first.",
+        "any_of": ["identity verification", "verify your identity", "identity"]
+      }
+    ],
+    "forbidden_phrases": ["instantly downloadable", "no verification"],
+    "reference_answer": "Request a copy of your account data by contacting support through the customer service portal. Identity verification is required before the request is processed.",
+    "expected_sources": ["support_policy.txt"],
+    "judge": true
+  }
+]

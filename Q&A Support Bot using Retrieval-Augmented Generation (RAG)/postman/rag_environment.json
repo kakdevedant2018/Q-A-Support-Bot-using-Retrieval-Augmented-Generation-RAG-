@@ -1,0 +1,13 @@
+{
+  "id": "rag-support-bot-local",
+  "name": "RAG Support Bot - Local",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}
