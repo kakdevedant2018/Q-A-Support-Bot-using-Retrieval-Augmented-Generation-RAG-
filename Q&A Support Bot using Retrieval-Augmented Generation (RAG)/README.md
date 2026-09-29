@@ -297,7 +297,7 @@ python -m evaluation.calibrate --semantic    # matched vs mismatched answer pair
 pytest --cov=app --cov-report=html      # open htmlcov\index.html
 pytest --html=report.html --self-contained-html
 ```
-###UI 
+### UI 
 <img width="3024" height="1964" alt="image" src="https://github.com/user-attachments/assets/4397d51b-4408-4209-9ac6-61fbe92fd7aa" />
 
 
