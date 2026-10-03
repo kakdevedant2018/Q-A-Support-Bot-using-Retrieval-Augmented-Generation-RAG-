@@ -19,6 +19,38 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.0
     llm_timeout_seconds: int = 120
 
+    # --- Local LLM performance --------------------------------------------
+    # These three are the difference between a 2-second answer and a
+    # 60-second one on a machine without a usable GPU. All were left at
+    # Ollama's defaults originally, and all three defaults are wrong for an
+    # interactive Q&A bot.
+    #
+    # How long Ollama keeps the weights resident after a request. The default
+    # is 5 minutes, so a user who reads an answer, thinks, and asks a second
+    # question pays the whole model load again from disk. There is no reason
+    # to evict a model this process is going to ask for again; "-1" pins it
+    # for the lifetime of the Ollama server.
+    llm_keep_alive: str = "30m"
+
+    # Context window. llama3.1 advertises 128k and Ollama was allocating a
+    # 32768-token KV cache here, which costs gigabytes of RAM and, on CPU,
+    # slows prompt processing for every request. This bot sends a system
+    # prompt plus `retrieval_k` chunks of `chunk_size` characters - well
+    # under 2k tokens. 4096 is generous for that and much cheaper.
+    llm_num_ctx: int = 4096
+
+    # Hard cap on answer length. Unbounded generation is the single largest
+    # latency term on CPU, and the system prompt already asks for a short
+    # answer - this makes it enforceable rather than a request.
+    llm_num_predict: int = 384
+
+    # --- Startup ----------------------------------------------------------
+    # Load the embedding model and pin the LLM in a background thread as soon
+    # as the process starts, instead of on the first user question. The work
+    # is identical; this only decides who waits for it. Off in tests, which
+    # must never touch a real model.
+    warmup_on_startup: bool = True
+
     # --- Local embedding model -------------------------------------------
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 

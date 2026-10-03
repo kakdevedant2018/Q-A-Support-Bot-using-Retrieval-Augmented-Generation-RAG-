@@ -15,6 +15,8 @@ Layout:
     semantic_evaluator.py      meaning comparison via local embeddings
     retrieval_metrics.py       Recall@k, Precision@k, MRR from labelled data
     safety_evaluator.py        injection, leakage, invented policy
+    metamorphic.py             relations between related inputs, no labels needed
+    bias.py                    persona invariance; a specialisation of the above
     llm_judge.py               model-graded quality, advisory only
     report.py                  scorecard aggregation, console/JSON/HTML output
     run_eval.py                CLI: run a dataset and print a scorecard
@@ -38,9 +40,11 @@ Design notes, including the limits of each evaluator, are in
 """
 
 __all__ = [
+    "bias",
     "fact_evaluator",
     "groundedness_evaluator",
     "llm_judge",
+    "metamorphic",
     "normalize",
     "report",
     "results",

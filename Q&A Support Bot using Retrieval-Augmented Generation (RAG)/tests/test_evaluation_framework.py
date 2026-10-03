@@ -1021,15 +1021,26 @@ def _behaviour_cases(name):
 
 
 def test_the_dataset_list_matches_what_the_harness_runs():
-    """A dataset file nobody runs is a file nobody maintains."""
-    from evaluation.run_eval import ALL_DATASETS, DATASET_DIR
+    """A dataset file nobody runs is a file nobody maintains.
+
+    Two inventories, because there are two dataset shapes. ALL_DATASETS holds
+    the case-per-question files `run_eval` scores; RELATION_DATASETS holds the
+    group-per-relation files that `test_metamorphic.py` and `test_bias.py` run
+    instead. Every file on disk has to appear in one of them.
+    """
+    from evaluation.run_eval import ALL_DATASETS, DATASET_DIR, RELATION_DATASETS
 
     on_disk = {p.stem for p in DATASET_DIR.glob("*.json")}
-    assert on_disk == set(ALL_DATASETS), (
-        f"datasets on disk {sorted(on_disk)} do not match ALL_DATASETS "
-        f"{sorted(ALL_DATASETS)}"
+    accounted_for = set(ALL_DATASETS) | set(RELATION_DATASETS)
+    assert on_disk == accounted_for, (
+        f"datasets on disk {sorted(on_disk)} are not all accounted for by "
+        f"ALL_DATASETS + RELATION_DATASETS {sorted(accounted_for)}"
     )
     assert set(DATASET_FILES) == set(ALL_DATASETS)
+    assert not set(ALL_DATASETS) & set(RELATION_DATASETS), (
+        "a dataset cannot be in both inventories: the two have different "
+        "shapes and different runners"
+    )
 
 
 @pytest.mark.parametrize("name", DATASET_FILES)

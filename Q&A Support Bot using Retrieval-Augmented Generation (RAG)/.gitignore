@@ -1,0 +1,32 @@
+# Secrets and local config
+.env
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Persisted vector store - rebuild it with the ingestion script
+chroma_db/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# Test and coverage output
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+report.html
+assets/
+allure-results/
+
+# Local model caches
+.cache/
+
+# OS noise
+.DS_Store
+Thumbs.db

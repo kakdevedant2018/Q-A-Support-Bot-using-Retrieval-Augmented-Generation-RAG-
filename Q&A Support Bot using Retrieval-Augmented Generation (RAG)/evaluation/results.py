@@ -155,6 +155,145 @@ class JudgeResult:
 
 
 @dataclass
+class VariantOutcome:
+    """One question in a related group, and what the bot did with it.
+
+    The unit of comparison for metamorphic and bias testing. Deliberately holds
+    the fact verdict rather than the answer text, because the whole point of
+    both techniques is that two correct answers to related questions will not
+    be the same string.
+    """
+
+    label: str
+    question: str
+    answer: str
+    insufficient_context: bool = False
+    # Whether the bot declined, by either of the two routes it has: the
+    # retrieval gate setting `insufficient_context`, or the model itself saying
+    # it does not have enough information even though chunks cleared the
+    # threshold. These are not the same event and the second one is common -
+    # a loosely related chunk scores 0.66 and is retrieved, and the model
+    # correctly declines anyway. Anything asserting on refusal has to read this
+    # rather than `insufficient_context`, or it sees a refusal as an answer.
+    refused: bool = False
+    # "source@score" per retrieved chunk. Carried because the first two real
+    # divergences this found were both caused by *which chunks were retrieved*
+    # changing, not by the model changing its mind about the same context -
+    # and without this field, telling those two apart meant re-running the
+    # variants by hand through RAGService.retrieve.
+    sources: List[str] = field(default_factory=list)
+    facts: Optional[FactResult] = None
+    error: Optional[str] = None
+
+    @property
+    def states_expected_facts(self) -> Optional[bool]:
+        """None when nothing could be measured, which is never a pass."""
+        if self.error:
+            return None
+        return self.facts.passed if self.facts else None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "label": self.label,
+            "question": self.question,
+            "answer": self.answer,
+            "insufficient_context": self.insufficient_context,
+            "refused": self.refused,
+            "sources": self.sources,
+            "states_expected_facts": self.states_expected_facts,
+            "error": self.error,
+            "facts": self.facts.to_dict() if self.facts else None,
+        }
+
+
+@dataclass
+class MetamorphicResult:
+    """Whether a metamorphic relation held across a group of related inputs.
+
+    `passed` requires two separate things, and keeping them apart is the point:
+
+    * `relation_holds` - the bot treated the related inputs consistently
+    * `baseline_passed` - the base question was answered correctly at all
+
+    A bot that refuses every question satisfies every invariance relation, so
+    `relation_holds` alone is not evidence of anything. When the relation holds
+    and the baseline failed, `consistent_but_wrong` is set: that is a retrieval
+    or corpus defect surfacing through this suite, not an invariance defect, and
+    reporting it as the latter sends the fix in the wrong direction.
+    """
+
+    relation_id: str
+    kind: str
+    relation: str
+    relation_holds: bool
+    baseline_passed: bool
+    base: Optional[VariantOutcome] = None
+    variants: List[VariantOutcome] = field(default_factory=list)
+    divergences: List[str] = field(default_factory=list)
+    reason: str = ""
+
+    @property
+    def passed(self) -> bool:
+        return self.relation_holds and self.baseline_passed
+
+    @property
+    def consistent_but_wrong(self) -> bool:
+        return self.relation_holds and not self.baseline_passed
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "relation_id": self.relation_id,
+            "kind": self.kind,
+            "relation": self.relation,
+            "passed": self.passed,
+            "relation_holds": self.relation_holds,
+            "baseline_passed": self.baseline_passed,
+            "consistent_but_wrong": self.consistent_but_wrong,
+            "divergences": self.divergences,
+            "reason": self.reason,
+            "base": self.base.to_dict() if self.base else None,
+            "variants": [v.to_dict() for v in self.variants],
+        }
+
+
+@dataclass
+class BiasResult:
+    """Whether the stated policy changed when only the persona changed.
+
+    The corpus is policy text that says nothing about who is asking, so every
+    group must receive the same facts. Any divergence is attributable to the
+    model, not the documents - which is what makes this measurable here and
+    hard to measure in a system whose corpus is itself about people.
+    """
+
+    template_id: str
+    baseline_group: str
+    passed: bool
+    outcomes: List[VariantOutcome] = field(default_factory=list)
+    divergent_groups: List[str] = field(default_factory=list)
+    reason: str = ""
+
+    @property
+    def disparity(self) -> float:
+        """Fraction of non-baseline groups whose fact verdict differed."""
+        comparable = [o for o in self.outcomes if o.label != self.baseline_group]
+        if not comparable:
+            return 0.0
+        return len(self.divergent_groups) / len(comparable)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "template_id": self.template_id,
+            "baseline_group": self.baseline_group,
+            "passed": self.passed,
+            "disparity": round(self.disparity, 4),
+            "divergent_groups": self.divergent_groups,
+            "reason": self.reason,
+            "outcomes": [o.to_dict() for o in self.outcomes],
+        }
+
+
+@dataclass
 class CaseResult:
     """Everything known about one evaluated question."""
 

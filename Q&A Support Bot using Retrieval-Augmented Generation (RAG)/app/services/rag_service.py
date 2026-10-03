@@ -86,6 +86,34 @@ Context:
 {{context}}"""
 
 
+def _build_llm(num_predict: Optional[int] = None) -> Any:
+    """Construct the Ollama chat client.
+
+    One place so the query path and the warmup ping cannot disagree about
+    `keep_alive` or `num_ctx` - a warmup that pinned a differently configured
+    model would make Ollama load the weights twice.
+
+    The three performance options were left at Ollama's defaults originally,
+    and each default is wrong for an interactive bot: the weights were evicted
+    after 5 minutes idle, a 32k KV cache was allocated for a prompt that never
+    exceeds 2k, and generation had no upper bound. On a machine without GPU
+    offload that combination is the entire latency story. See app/config.py.
+    """
+    from langchain_ollama import ChatOllama
+
+    return ChatOllama(
+        model=settings.llm_model,
+        base_url=settings.ollama_base_url,
+        temperature=settings.llm_temperature,
+        client_kwargs={"timeout": settings.llm_timeout_seconds},
+        keep_alive=settings.llm_keep_alive,
+        num_ctx=settings.llm_num_ctx,
+        num_predict=(
+            settings.llm_num_predict if num_predict is None else num_predict
+        ),
+    )
+
+
 class RAGService:
     """Retrieves grounded context and generates an answer from it."""
 
@@ -137,19 +165,44 @@ class RAGService:
     def llm(self) -> Any:
         if self._llm is None:
             try:
-                from langchain_ollama import ChatOllama
-
-                self._llm = ChatOllama(
-                    model=settings.llm_model,
-                    base_url=settings.ollama_base_url,
-                    temperature=settings.llm_temperature,
-                    client_kwargs={"timeout": settings.llm_timeout_seconds},
-                )
+                self._llm = _build_llm()
             except Exception as exc:
                 raise LLMUnavailableError(
                     "Could not initialise the local Ollama client"
                 ) from exc
         return self._llm
+
+    # -- warmup ------------------------------------------------------------
+
+    def warm_up(self) -> None:
+        """Pay the one-time model load costs now rather than on a user's turn.
+
+        Measured on the first `/ask` of a fresh process: ~17s to import torch
+        and load the embedding weights, then ~6s for Ollama to bring the LLM
+        into memory. Neither cost is avoidable, but both are the same whether
+        they happen at boot or in front of a waiting user.
+
+        Every failure here is logged and swallowed. A warmup is an
+        optimisation; if Ollama is down, that has to surface as a 502 from
+        `/ask` with its actionable message, not as a process that will not
+        start.
+        """
+        try:
+            self.store.get(limit=1)
+            logger.info("warmup: embedding model and vector store ready")
+        except Exception:
+            logger.warning("warmup: vector store not ready", exc_info=True)
+
+        try:
+            # A throwaway client capped at one token: enough to make Ollama
+            # load the weights and hold them for `llm_keep_alive`, without
+            # generating a full answer nobody will read. `num_predict` has to
+            # be set at construction - langchain-ollama does not accept it as
+            # a per-call keyword and raises TypeError if you try.
+            _build_llm(num_predict=1).invoke("ping")
+            logger.info("warmup: local model %r resident", settings.llm_model)
+        except Exception:
+            logger.warning("warmup: local model not ready", exc_info=True)
 
     # -- pipeline stages ---------------------------------------------------
 

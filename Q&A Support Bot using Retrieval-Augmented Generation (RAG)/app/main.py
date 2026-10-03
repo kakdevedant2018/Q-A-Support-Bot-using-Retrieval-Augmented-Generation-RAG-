@@ -1,13 +1,19 @@
 """FastAPI entrypoint.
 
 Run it:
-    uvicorn app.main:app --reload
+    uvicorn app.main:app
 
 Then open http://127.0.0.1:8000 for the UI, or /docs for the API reference.
+
+Add `--reload` only while editing the code. It restarts the worker on every
+file change, which throws away the warmed embedding model and makes the next
+question slow again.
 """
 
+import threading
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -22,7 +28,32 @@ from app.utils.logger import configure_logging, get_logger
 configure_logging(settings.log_level)
 logger = get_logger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Start the model warmup, without making the server wait for it.
+
+    A background thread rather than an awaited call on purpose. Blocking
+    startup would keep uvicorn from accepting connections for ~20 seconds, so
+    the UI itself would not load - trading a slow first answer for a page that
+    appears broken. This way the server is immediately up, and a question
+    asked during the warmup is no slower than it was before.
+    """
+    if settings.warmup_on_startup:
+        from app.api.routes import _shared_rag_service
+
+        threading.Thread(
+            target=lambda: _shared_rag_service().warm_up(),
+            name="model-warmup",
+            daemon=True,
+        ).start()
+        logger.info("warmup: started in the background")
+
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="RAG Support Bot API",
     version=__version__,
     description=(

@@ -2,9 +2,12 @@
 # Minimal dependency set for the DEFAULT (mocked) test suite.
 #
 # The mocked suite covers health, input validation, the response contract,
-# error handling, and the relevance-threshold logic. None of that needs the
-# embedding model, Chroma, or Ollama, because every heavy import in the app is
-# deliberately deferred to inside a function.
+# error handling, the relevance-threshold logic, and the served browser UI.
+# None of that needs the embedding model, Chroma, or Ollama, because every
+# heavy import in the app is deliberately deferred to inside a function.
+#
+# The UI adds no dependency: it is a single static HTML file, so tests/test_ui.py
+# runs on this light set alone.
 #
 # The practical benefits:
 #   - CI installs in seconds instead of downloading torch

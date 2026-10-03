@@ -48,6 +48,24 @@ DATASET_DIR = Path(__file__).resolve().parent / "datasets"
 # Unlike the others it mixes content cases with behaviour cases, because real
 # failures do not sort themselves by evaluation technique.
 ALL_DATASETS = ["factual", "open_ended", "hallucination", "security", "regression"]
+
+# `metamorphic.json` and `bias.json` sit in the same directory but are not in
+# the list above, and that is deliberate rather than an omission.
+#
+# Every dataset in ALL_DATASETS is a list of independent cases: one question,
+# one set of expectations, one verdict. `evaluate_one` is built for exactly that
+# shape. A metamorphic relation is not a case - it is a *group* of questions
+# plus a property that must hold between their answers, and a bias template is
+# one question rendered once per persona. Neither has a single answer to score,
+# so neither can be fed to `evaluate_one` without the relation collapsing into
+# unrelated cases and the property going unchecked.
+#
+# They therefore get their own runners in `tests/test_metamorphic.py` and
+# `tests/test_bias.py`, and are listed here so that the dataset-inventory test
+# in `test_evaluation_framework.py` still accounts for every file on disk - an
+# unlisted dataset is one nobody maintains.
+RELATION_DATASETS = ["metamorphic", "bias"]
+
 ASK_PATH = "/api/v1/ask"
 
 

@@ -1,0 +1,122 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # The pull-request suite. Everything that needs no model, no index, and no
+  # network, split by marker so a failure names the layer that broke rather than
+  # just "the tests".
+  mocked-suite:
+    runs-on: ubuntu-latest
+
+    # The project lives in a subdirectory of this repository, but a workflow
+    # file is only read from `.github/workflows/` at the repository *root*. So
+    # the file has to sit here while every step has to run one level down, where
+    # `pytest.ini` and the packages actually are.
+    defaults:
+      run:
+        working-directory: "Q&A Support Bot using Retrieval-Augmented Generation (RAG)"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          # `defaults.run.working-directory` does not apply to an action's own
+          # inputs, only to `run:` steps, so the cache lookup needs the full
+          # path or it finds no requirements file and warns.
+          cache-dependency-path: "Q&A Support Bot using Retrieval-Augmented Generation (RAG)/requirements-test.txt"
+
+      # Only the light dependency set. The default suite is fully mocked, so CI
+      # needs no embedding model, no vector store, and no Ollama server. That
+      # keeps the run fast and guarantees it cannot incur a model cost.
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-test.txt
+
+      - name: API contract, validation, and error handling
+        run: pytest -m api
+
+      # "not integration" matters here: the rag marker also covers tests that
+      # build a real index, and this runner has neither the embedding model nor
+      # the heavy dependencies installed.
+      - name: Retrieval and threshold logic
+        run: pytest -m "rag and not integration"
+
+      - name: Security rules that need no model
+        run: pytest -m "security and not integration"
+
+      # The evaluators are the instrument the AI suites are measured with, so a
+      # bug here would silently invalidate every quality number. They are pure
+      # text analysis with no model, so they run here for free.
+      - name: Evaluation framework unit tests
+        run: pytest tests/test_evaluation_framework.py
+
+      # Same argument, for the metamorphic and bias evaluators. These two are
+      # the ones where a silent bug is most costly: an invariance check that
+      # always returns "the relation held" reports a green suite forever, and
+      # unlike a broken fact check it produces no visibly wrong number to
+      # notice. Both are pure functions over hand-built outcomes, so they cost
+      # nothing to run here.
+      - name: Metamorphic and bias evaluator unit tests
+        run: pytest tests/test_relation_framework.py
+
+      - name: Full mocked suite with coverage
+        run: pytest --cov=app --cov=evaluation --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore
+
+      # The datasets are inputs to every quality measurement, so a malformed one
+      # is a silent hole in the suite. This proves they parse before anything
+      # tries to run them.
+      - name: Validate the evaluation datasets
+        run: |
+          python -c "import json,glob,sys; [json.load(open(p,encoding='utf-8')) for p in glob.glob('evaluation/datasets/*.json')]; print('datasets parse')"
+
+      # Catches an import error or a broken argparse setup in the harness, which
+      # would otherwise only surface on the machine that has Ollama installed.
+      - name: Evaluation CLIs are invocable
+        run: |
+          python -m evaluation.run_eval --help
+          python -m evaluation.calibrate --help
+
+  # Integration, AI-quality, and model-backed security tests are intentionally
+  # NOT run here. They need a local model server, which a standard runner does
+  # not have. Run them on your own machine:
+  #
+  #   pytest -m integration
+  #   pytest -m "ai and not judge"
+  #   pytest -m security
+  #   python -m evaluation.run_eval --html reports/eval.html
+  #
+  # If you later point them at a hosted model, gate them behind a manual trigger
+  # and a spend cap. A test loop against a paid API on every push is how a
+  # portfolio project generates a real bill.
+  lint-check:
+    runs-on: ubuntu-latest
+
+    # Same reason as above.
+    defaults:
+      run:
+        working-directory: "Q&A Support Bot using Retrieval-Augmented Generation (RAG)"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Byte-compile every module
+        run: python -m compileall -q app evaluation tests
