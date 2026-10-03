@@ -1,0 +1,165 @@
+[
+  {
+    "id": "MR01",
+    "kind": "invariant",
+    "relation": "paraphrase",
+    "base_question": "What is the return period?",
+    "variants": [
+      "How long do I have to return a product?",
+      "Within how many days can I send an item back?",
+      "If I want to return something, what is the time limit?",
+      "I bought something I don't want. How long have I got to return it?"
+    ],
+    "expected_facts": [
+      {
+        "id": "return-window-30-days",
+        "statement": "Products can be returned within 30 days of delivery.",
+        "all_of": ["30 days"],
+        "any_of": ["return", "send back", "sent back"]
+      }
+    ],
+    "forbidden_phrases": ["90 days", "60 days", "45 days", "14 days"],
+    "note": "The relation docs/AI_TESTING_STRATEGY.md §1 argued for in prose. Four phrasings, no reference answers, one oracle."
+  },
+  {
+    "id": "MR02",
+    "kind": "invariant",
+    "relation": "paraphrase",
+    "base_question": "How long does standard delivery take?",
+    "variants": [
+      "When will my order arrive with normal shipping?",
+      "What is the delivery time for the standard option?",
+      "If I don't pay for express, how long is the wait?"
+    ],
+    "expected_facts": [
+      {
+        "id": "standard-delivery-window",
+        "statement": "Standard delivery arrives within 5 to 7 business days.",
+        "all_of": ["5", "7", "business day"]
+      }
+    ],
+    "forbidden_phrases": ["next day", "same day", "10 business days"]
+  },
+  {
+    "id": "MR03",
+    "kind": "invariant",
+    "relation": "paraphrase",
+    "base_question": "How long do I have to report a damaged item?",
+    "variants": [
+      "My package arrived broken. What is the deadline for telling you?",
+      "Within how many days must a damaged product be reported?",
+      "The item I received is the wrong one. How long do I have to raise it?"
+    ],
+    "expected_facts": [
+      {
+        "id": "damaged-item-window",
+        "statement": "A damaged or incorrect item must be reported within 7 days of delivery.",
+        "all_of": ["7 days"],
+        "any_of": ["damaged", "incorrect", "report"]
+      }
+    ],
+    "forbidden_phrases": ["30 days", "14 days", "no time limit"]
+  },
+  {
+    "id": "MR04",
+    "kind": "invariant",
+    "relation": "surface_form",
+    "base_question": "What are the support hours?",
+    "transformations": [
+      "lowercase",
+      "uppercase",
+      "no_punctuation",
+      "extra_whitespace",
+      "polite_prefix",
+      "polite_suffix"
+    ],
+    "expected_facts": [
+      {
+        "id": "support-hours",
+        "statement": "Support runs Monday to Friday, 9:00 AM to 6:00 PM local time.",
+        "all_of": ["monday", "friday"],
+        "any_of": ["9", "9:00"]
+      }
+    ],
+    "forbidden_phrases": ["24/7", "24 hours a day", "weekend"],
+    "note": "polite_prefix is the end-to-end proof of the whole-string-match guarantee in app/services/small_talk.py. A greeting attached to a real question must not be swallowed as small talk."
+  },
+  {
+    "id": "MR05",
+    "kind": "invariant",
+    "relation": "surface_form",
+    "base_question": "How quickly do high priority requests get a first response?",
+    "transformations": ["lowercase", "no_punctuation", "polite_prefix", "typo"],
+    "expected_facts": [
+      {
+        "id": "high-priority-response",
+        "statement": "High priority requests get a first response within 4 hours.",
+        "all_of": ["4 hours"],
+        "any_of": ["high priority", "priority"]
+      }
+    ],
+    "forbidden_phrases": ["24 hours", "immediately", "1 hour"]
+  },
+  {
+    "id": "MR06",
+    "kind": "invariant",
+    "relation": "distraction",
+    "base_question": "What payment methods are supported?",
+    "transformations": ["distractor"],
+    "variants": [
+      "What payment methods are supported? I am asking because my previous order was a gift for my brother.",
+      "I have been a customer for years and always enjoyed the service. What payment methods are supported?"
+    ],
+    "expected_facts": [
+      {
+        "id": "card-payments",
+        "statement": "Credit cards and debit cards are supported.",
+        "all_of": ["credit card"],
+        "any_of": ["debit card", "debit"]
+      }
+    ],
+    "forbidden_phrases": ["cryptocurrency", "bitcoin", "cash on delivery"],
+    "note": "Retrieval embeds the whole question, so irrelevant text dilutes the query vector and can push the answering chunk below relevance_threshold. Invisible to a dataset of clean one-line questions."
+  },
+  {
+    "id": "MR07",
+    "kind": "change",
+    "relation": "scope_change",
+    "expect": "refusal",
+    "base_question": "What is the return period?",
+    "variants": [
+      "What is the return period for items bought from a competitor's website?",
+      "What is the warranty period on electronics?",
+      "What is the return period under German consumer law?"
+    ],
+    "expected_facts": [
+      {
+        "id": "return-window-30-days",
+        "statement": "Products can be returned within 30 days of delivery.",
+        "all_of": ["30 days"],
+        "any_of": ["return", "send back", "sent back"]
+      }
+    ],
+    "note": "The relation that makes MR01-MR06 mean something. A bot that refuses everything satisfies every invariance relation and fails this one; a bot that answers everything does the reverse. Only a correct bot passes both sets."
+  },
+  {
+    "id": "MR08",
+    "kind": "change",
+    "relation": "scope_change",
+    "expect": "refusal",
+    "base_question": "What are the support hours?",
+    "variants": [
+      "What are the support hours on public holidays in Japan?",
+      "What is the phone number for the support team?"
+    ],
+    "expected_facts": [
+      {
+        "id": "support-hours",
+        "statement": "Support runs Monday to Friday, 9:00 AM to 6:00 PM local time.",
+        "all_of": ["monday", "friday"],
+        "any_of": ["9", "9:00"]
+      }
+    ],
+    "note": "The corpus gives weekday hours and names email plus the portal as the contact channels. Neither variant is answerable from it, and inventing a holiday schedule or a phone number is the exact damage this project exists to prevent."
+  }
+]

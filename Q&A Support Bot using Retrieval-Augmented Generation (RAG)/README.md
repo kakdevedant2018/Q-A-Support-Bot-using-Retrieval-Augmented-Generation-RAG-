@@ -140,11 +140,16 @@ python -m app.ingestion.ingest --reset
 ### 5. Start the API
 
 ```powershell
-uvicorn app.main:app --reload
+uvicorn app.main:app
 ```
 
 - **UI: http://127.0.0.1:8000**
 - Interactive API docs: http://127.0.0.1:8000/docs
+
+The server accepts connections straight away, and loads the embedding model and
+the LLM in the background while you open the page — watch for
+`warmup: local model 'llama3.1' resident` in the log. Add `--reload` only while
+you are editing the code; see [When answers are slow](#when-answers-are-slow).
 
 The UI is one self-contained HTML file served by the same process — no npm, no
 build step, no CDN, and it works offline. It calls the same `POST /api/v1/ask`
@@ -297,12 +302,6 @@ python -m evaluation.calibrate --semantic    # matched vs mismatched answer pair
 pytest --cov=app --cov-report=html      # open htmlcov\index.html
 pytest --html=report.html --self-contained-html
 ```
-### UI 
-<img width="3024" height="1964" alt="image" src="https://github.com/user-attachments/assets/4397d51b-4408-4209-9ac6-61fbe92fd7aa" />
-
-
-
-
 
 ### Postman and Newman
 
@@ -325,6 +324,10 @@ Copy `env.example` to `.env` only to override something.
 |---|---|---|
 | `LLM_MODEL` | `llama3.1` | Must match a model you have pulled |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | |
+| `LLM_KEEP_ALIVE` | `30m` | How long Ollama holds the weights. Ollama's own default is `5m` |
+| `LLM_NUM_CTX` | `4096` | Context window. Ollama defaulted to `32768`, which this bot never uses |
+| `LLM_NUM_PREDICT` | `384` | Answer length cap in tokens |
+| `WARMUP_ON_STARTUP` | `true` | Load both models at boot instead of on the first question |
 | `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Runs locally |
 | `CHROMA_DIR` | `chroma_db` | Persisted index location |
 | `RETRIEVAL_K` | `5` | Chunks considered per question, before the threshold |
@@ -405,10 +408,77 @@ fallback to the old path.
 
 ---
 
+## When answers are slow
+
+Three costs sit behind every answer, and only the third is real work:
+
+| Cost | When it is paid | Measured, macOS / Metal |
+|---|---|---|
+| Import torch, load the embedding weights | Once per process | ~13 s |
+| Ollama reads the LLM into memory | Once per `LLM_KEEP_ALIVE` window | ~5 s |
+| Retrieval + generation | Every question | ~1 s |
+
+Left at the library defaults, a user paid the first two on their own turn: the
+first question of a fresh process took **23.6 s**, against 1.2 s once warm. With
+`WARMUP_ON_STARTUP` and `LLM_KEEP_ALIVE` the same first question takes **1.7 s**,
+because the loads happen at boot in a background thread instead. The server still
+accepts connections immediately, so the UI is never held back by the warmup.
+
+### If it is slow on one machine and fine on another
+
+Ask Ollama, not the app. While a model is loaded:
+
+```powershell
+ollama ps
+```
+
+```
+NAME               ID              SIZE      PROCESSOR    CONTEXT    UNTIL
+llama3.1:latest    46e0c10c039e    5.0 GB    100% GPU     4096       29 minutes from now
+```
+
+`PROCESSOR` is the answer to almost every "fast on my Mac, slow on Windows"
+report. `100% GPU` means the weights are on the GPU; `100% CPU` means Ollama
+found no usable GPU and is running an 8-billion-parameter model on the
+processor, which is roughly an order of magnitude slower. Nothing in this
+project can fix that - but two settings make it bearable:
+
+```dotenv
+LLM_MODEL=llama3.2:3b
+LLM_NUM_PREDICT=256
+```
+
+```powershell
+ollama pull llama3.2:3b
+```
+
+A 3B model is a much better trade on CPU than an 8B one, and the answers for
+this corpus are short factual lookups. Check `SIZE` too: if it approaches the
+machine's free RAM, the OS is paging the weights and nothing else will help.
+`LLM_NUM_CTX` exists for the same reason - Ollama was allocating a 32768-token
+KV cache for a prompt that never exceeds about 2k, which is gigabytes of RAM
+and CPU time spent on empty context.
+
+### Do not use `--reload` when you are actually using the bot
+
+`--reload` restarts the worker on any file change, which discards the loaded
+embedding model and triggers a fresh warmup. It is for editing the code, not
+for demoing the UI:
+
+```powershell
+uvicorn app.main:app          # using it
+uvicorn app.main:app --reload  # changing it
+```
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| Slow on Windows, fine on macOS | Ollama found no usable GPU and is running on CPU | `ollama ps` and read `PROCESSOR`. See [When answers are slow](#when-answers-are-slow) |
+| The first question is slow, the rest are fast | Warmup is off, or the process just restarted | Set `WARMUP_ON_STARTUP=true`; drop `--reload` |
+| Fast, then slow again after a break | Ollama evicted the model. Its default is 5 minutes | Raise `LLM_KEEP_ALIVE`, or `-1` to pin it |
 | 503 from `/ask` | The index is empty or missing | Run `python -m app.ingestion.ingest` |
 | 502 from `/ask` | Ollama is not running, or the model was never pulled | `ollama list`, then `ollama pull llama3.1` |
 | Every answer says it lacks information | The threshold is too high for your documents | Lower `RELEVANCE_THRESHOLD` and measure |

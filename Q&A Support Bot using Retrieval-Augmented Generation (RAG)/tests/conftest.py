@@ -27,8 +27,15 @@ from typing import Any, Callable, Dict, Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.routes import get_rag_service
-from app.main import app
+from app.config import settings
+
+# Before `app.main` is imported, so the lifespan hook reads it as False. The
+# default suite must not load torch, open Chroma, or reach Ollama, and a
+# warmup thread would do all three behind the mocks' back.
+settings.warmup_on_startup = False
+
+from app.api.routes import get_rag_service  # noqa: E402
+from app.main import app  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DOCUMENTS_DIR = REPO_ROOT / "data" / "documents"

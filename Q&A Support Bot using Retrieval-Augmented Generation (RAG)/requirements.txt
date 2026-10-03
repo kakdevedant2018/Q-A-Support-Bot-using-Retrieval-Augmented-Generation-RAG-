@@ -19,6 +19,12 @@ pydantic>=2.7
 pydantic-settings>=2.3
 python-dotenv>=1.0
 
+# --- Browser UI ------------------------------------------------------------
+# Nothing to install. app/static/index.html is one self-contained file with no
+# npm, no framework, and no CDN, served by the FastAPI process above via
+# FileResponse. Modern Starlette reads it through anyio, so the `aiofiles`
+# package that older FastAPI guides ask for here is NOT needed.
+
 # --- RAG orchestration -----------------------------------------------------
 langchain>=0.3
 langchain-core>=0.3
